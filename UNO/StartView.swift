@@ -7,14 +7,20 @@
 
 import SwiftUI
 
+enum Route: Hashable {
+    case game
+    case result(win: Bool)
+}
+
 struct StartView: View {
     @State var flipped: Bool = false
     @State var cardIndex: Int = randomCard()
     @State private var rotation: Double = 0
     @State private var isAnimating = false
     
-    @State private var path: [Int] = []
+    @State private var path: [Route] = []
     @State private var move = false
+    
     
     let cardData = CardData()
     
@@ -97,7 +103,7 @@ struct StartView: View {
                 
                 
                 VStack(spacing: 40) {
-                    NavigationLink(value: 1) {
+                    NavigationLink(value: Route.game) {
                         Text("ゲームを始める")
                             .font(.system(size: 22, weight: .heavy, design: .rounded))
                             .foregroundStyle(.white)
@@ -151,11 +157,13 @@ struct StartView: View {
                 
             }
             .padding()
-            .navigationDestination(for: Int.self) { value in
-                if value == 1 {
+            .navigationDestination(for: Route.self) { route in
+                switch route {
+                case .game:
                     GameView(path: $path)
-                } else if value == 999 {
-                    ResultView(path: $path)
+                    
+                case .result(let win):
+                    ResultView(path: $path, win: win)
                 }
             }
         }

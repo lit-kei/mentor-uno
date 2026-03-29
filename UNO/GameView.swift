@@ -34,7 +34,7 @@ struct GameView: View {
     
     @State var canTakeCard: Bool = true
     
-    @Binding var path: [Int]
+    @Binding var path: [Route]
     
     
     @State var cards: [[Card]] = [
@@ -58,7 +58,7 @@ struct GameView: View {
     @State var animatingToFieldID: Int? = nil
     @State var submitQueue: [Int] = []
     
-    
+    let offsetY: CGFloat = 4
     
     var body: some View {
         VStack(spacing: 80) {
@@ -119,15 +119,38 @@ struct GameView: View {
                     )
                         
                     ZStack {
-                            
+                        
                         Image("card")
                             .resizable()
                             .frame(width: 80, height: 120)
                             .cornerRadius(10)
+                            .offset(y: offsetY)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 10)
                                     .stroke(Color.black, lineWidth: 2) // 枠線
                             )
+                        
+                        Image("card")
+                            .resizable()
+                            .frame(width: 80, height: 120)
+                            .cornerRadius(10)
+                            .offset(y: offsetY - 2)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .offset(y: offsetY - 2)
+                                    .stroke(Color.black, lineWidth: 2) // 枠線
+                            )
+                        Image("card")
+                            .resizable()
+                            .frame(width: 80, height: 120)
+                            .cornerRadius(10)
+                            .offset(x: 0, y: offsetY - 6)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .offset(x: 0, y: offsetY - 6)
+                                    .stroke(Color.black, lineWidth: 2) // 枠線
+                            )
+                            
                             
                         Button(action: {
                             if turn == 0 && !isGetting && canTakeCard {
@@ -179,8 +202,10 @@ struct GameView: View {
                                     .resizable()
                                     .frame(width: 80, height: 120)
                                     .cornerRadius(10)
+                                    .offset(y: offsetY - 6)
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 10)
+                                            .offset(y: offsetY - 6)
                                             .stroke(Color.black, lineWidth: 2) // 枠線
                                     )
                                     .opacity(flipped ? 0 : 1)
@@ -191,9 +216,11 @@ struct GameView: View {
                                     .frame(width: 80, height: 120)
                                     .matchedGeometryEffect(id: "drawCard", in: cardAnimation)
                                     .cornerRadius(10)
+                                    .offset(y: offsetY - 6)
                                     .opacity(animatingCardID == nil ? 1 : 0)
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 10)
+                                            .offset(y: offsetY - 6)
                                             .stroke(Color.black, lineWidth: 2)
                                     )
                                     .scaleEffect(x: -1)
@@ -252,10 +279,6 @@ struct GameView: View {
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 5)
                                             .stroke(Color.black, lineWidth: 2)
-                                    )
-                                    .matchedGeometryEffect(
-                                        id: animatingToFieldID == card.privateID ? "toField" : "hand_\(card.privateID)",
-                                        in: cardAnimation
                                     )
                                     
                             }
@@ -321,11 +344,8 @@ struct GameView: View {
                     .disabled(frontCards.isEmpty)
                         
                         
-                    
                     Button(action: {
-                        submitQueue = frontCards
-                        frontCards.removeAll()
-                        playNextCard()
+                        submitCards(player: 0, cards: frontCards)
                         frontCards.removeAll()
                         submittingCardIDs.removeAll()
                         
@@ -351,9 +371,10 @@ struct GameView: View {
             initGame()
         }
         .onChange(of: cards) { value, newValue in
-            if newValue[0].isEmpty && !didFinish {
+            if newValue.contains(where: { $0.isEmpty }) && !didFinish {
                 didFinish = true
-                path.append(999)
+                if newValue[0].isEmpty { path.append(.result(win: true))}
+                else { path.append(.result(win: false)) }
             }
         }
             
@@ -500,6 +521,6 @@ struct GameView: View {
 }
 
 #Preview {
-    @Previewable @State var path: [Int] = []
+    @Previewable @State var path: [Route] = []
     return GameView(path: $path)
 }

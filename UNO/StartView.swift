@@ -37,14 +37,14 @@ struct StartView: View {
                     Text("↓ TAP ↓")
                         .font(.title)
                         .fontWeight(.bold)
-                        .offset(y: move ? 0 : -20) // 上下に動く
-                        .animation(
-                            .easeInOut(duration: 0.8)
-                            .repeatForever(autoreverses: true),
-                            value: move
-                        )
+                        .offset(y: move ? 0 : -20)
                         .onAppear {
-                            move = true
+                            withAnimation(
+                                .easeInOut(duration: 0.8)
+                                .repeatForever(autoreverses: true)
+                            ) {
+                                move.toggle()
+                            }
                         }
                     
                     Button(action: {

@@ -56,7 +56,9 @@ struct GameView: View {
     @State private var didFinish = false
     
     @State var animatingToFieldID: Int? = nil
+    @State var animatingToField: (player: Int, id: Int)? = nil
     @State var submitQueue: [Int] = []
+    @State private var drawAttention = false
     
     let offsetY: CGFloat = 4
     
@@ -69,6 +71,13 @@ struct GameView: View {
                             .resizable()
                             .frame(width: 80, height: 120)
                             .cornerRadius(10)
+                            /*.matchedGeometryEffect(
+                                id: (animatingToField?.player == 2 && animatingToField?.id == card.privateID)
+                                    ? "toField_\(2)_\(card.privateID)"
+                                    : "cpu_\(2)_\(card.privateID)",
+                                in: cardAnimation,
+                                isSource: animatingToField?.player == 2 && animatingToField?.id == card.privateID
+                            )*/
                             .overlay(
                                 RoundedRectangle(cornerRadius: 10)
                                     .stroke(Color.black, lineWidth: 2) // 枠線
@@ -78,6 +87,12 @@ struct GameView: View {
                     }
                     .offset(x: calcOffset(card: card, cards: cards[2]))
                         
+                }
+                
+                VStack {
+                    Spacer()
+                    turnIndicator(for: 2)
+                        .offset(y: 20)
                 }
             }
                 
@@ -89,6 +104,13 @@ struct GameView: View {
                                 .resizable()
                                 .frame(width: 80, height: 120)
                                 .cornerRadius(10)
+                                /*.matchedGeometryEffect(
+                                    id: (animatingToField?.player == 1 && animatingToField?.id == card.privateID)
+                                        ? "toField_\(1)_\(card.privateID)"
+                                        : "cpu_\(1)_\(card.privateID)",
+                                    in: cardAnimation,
+                                    isSource: animatingToField?.player == 1 && animatingToField?.id == card.privateID
+                                )*/
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 10)
                                         .stroke(Color.black, lineWidth: 2) // 枠線
@@ -98,6 +120,13 @@ struct GameView: View {
                         .offset(y: calcOffset(card: card, cards: cards[1]))
                             
                     }
+                    
+                    HStack {
+                        Spacer()
+                        turnIndicator(for: 1)
+                            .offset(x: 50)
+                        
+                    }
                 }
                     
                 HStack(spacing: 10) {
@@ -105,10 +134,17 @@ struct GameView: View {
                         Image(cardData[field].name)
                             .resizable()
                             .frame(width: 80, height: 120)
-                            .matchedGeometryEffect(
-                                id: animatingToFieldID != nil ? "toField" : "field",
-                                in: cardAnimation
-                            )
+                            /*.matchedGeometryEffect(
+                                id: {
+                                    if let anim = animatingToField {
+                                        return "toField_\(anim.player)_\(anim.id)"
+                                    } else {
+                                        return "field"
+                                    }
+                                }(),
+                                in: cardAnimation,
+                                isSource: false
+                            )*/
                             
                             
                     }
@@ -209,6 +245,7 @@ struct GameView: View {
                                             .stroke(Color.black, lineWidth: 2) // 枠線
                                     )
                                     .opacity(flipped ? 0 : 1)
+                                    
                                 
                                 
                                 Image(cardData[nextCard].name)
@@ -227,10 +264,14 @@ struct GameView: View {
                                     .opacity(flipped ? 1 : 0)
                             }
                             .opacity(isDrawing ? 0 : 1)
-                                
-                                
-                                
-                            
+                            .offset(y: drawAttention ? -10 : 0)
+                            .animation(
+                                drawAttention
+                                ? .easeInOut(duration: 0.8).repeatForever(autoreverses: true)
+                                : .default,
+                                value: drawAttention
+                            )
+                           
                         }
                         .buttonStyle(.plain)
                         .rotation3DEffect(
@@ -249,7 +290,13 @@ struct GameView: View {
                             Image("card")
                                 .resizable()
                                 .frame(width: 80, height: 120)
-                                .cornerRadius(10)
+                                /*.cornerRadius(10).matchedGeometryEffect(
+                                    id: (animatingToField?.player == 3 && animatingToField?.id == card.privateID)
+                                        ? "toField_\(3)_\(card.privateID)"
+                                        : "cpu_\(3)_\(card.privateID)",
+                                    in: cardAnimation,
+                                    isSource: animatingToField?.player == 3 && animatingToField?.id == card.privateID
+                                )*/
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 10)
                                         .stroke(Color.black, lineWidth: 2) // 枠線
@@ -258,6 +305,12 @@ struct GameView: View {
                         }
                         .offset(y: calcOffset(card: card, cards: cards[3]))
                             
+                    }
+                    
+                    HStack {
+                        turnIndicator(for: 3)
+                            .offset(x: -50)
+                        Spacer()
                     }
                 }
             }
@@ -288,6 +341,7 @@ struct GameView: View {
                     }
                 }
                     
+                turnIndicator(for: 0)
                 ZStack {
                     if frontCards.count == cards[0].count {
                         Text("")
@@ -371,11 +425,18 @@ struct GameView: View {
             initGame()
         }
         .onChange(of: cards) { value, newValue in
+            updateDrawSuggestion()
             if newValue.contains(where: { $0.isEmpty }) && !didFinish {
                 didFinish = true
                 if newValue[0].isEmpty { path.append(.result(win: true))}
                 else { path.append(.result(win: false)) }
             }
+        }
+        .onChange(of: turn) { _, _ in
+            updateDrawSuggestion()
+        }
+        .onChange(of: canTakeCard) { _, _ in
+            updateDrawSuggestion()
         }
             
         
@@ -418,6 +479,23 @@ struct GameView: View {
             return true
         } else {
             return cardData[cards[0][frontCards[0]].cardID].number == cardData[card.cardID].number
+        }
+    }
+
+    func shouldSuggestDraw() -> Bool {
+        if turn != 0 { return false }
+        if !canTakeCard { return false }
+        
+        return !cards[0].contains { isAvailable(card: $0) }
+    }
+    
+    func updateDrawSuggestion() {
+        if shouldSuggestDraw() {
+            withAnimation(.easeInOut(duration: 0.6).repeatForever(autoreverses: true)) {
+                drawAttention = true
+            }
+        } else {
+            drawAttention = false
         }
     }
     
@@ -472,7 +550,7 @@ struct GameView: View {
         }
     }
     func startCPUTurn() {
-        Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { timer in
+        Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { timer in
             
             cpuAction(player: turn)
             turn += 1
@@ -497,9 +575,19 @@ struct GameView: View {
         }
         
         if !playable.isEmpty {
-            // ランダムで1枚選ぶ
             if let selected = playable.randomElement() {
                 submitCards(player: player, cards: [selected.privateID])
+                /*animatingToField = (player, selected.privateID)
+
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) {
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                        submitCards(player: player, cards: [selected.privateID])
+                    }
+                }
+
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+                    animatingToField = nil
+                }*/
             }
         } else {
             drawCard(player: player)
@@ -517,7 +605,12 @@ struct GameView: View {
         
         cards[player].append(card)
     }
-
+    func turnIndicator(for player: Int) -> some View {
+        Circle()
+            .fill(turn == player ? Color.green : Color.clear)
+            .frame(width: 15, height: 15)
+            .animation(.easeInOut(duration: 0.2), value: turn)
+    }
 }
 
 #Preview {
